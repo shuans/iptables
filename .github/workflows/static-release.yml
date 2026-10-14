@@ -56,14 +56,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -eu
-          cd dist
-          for checksum in *.sha256; do sha256sum -c "$checksum"; done
-          cat *.sha256 > SHA256SUMS
-          rm -- *.sha256
-          cd ..
+          for checksum in dist/*.sha256; do sha256sum -c "$checksum"; done
+          rm -- dist/*.sha256
           git archive --format=tar.gz --prefix=iptables-source/ -o dist/iptables-source.tar.gz HEAD
           cd dist
-          sha256sum iptables-source.tar.gz >> SHA256SUMS
+          sha256sum *.tar.gz > SHA256SUMS
           cd ..
           gh release create "$GITHUB_REF_NAME" dist/*.tar.gz dist/SHA256SUMS \
             --title "Static iptables $GITHUB_REF_NAME" \
