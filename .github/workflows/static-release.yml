@@ -1,0 +1,67 @@
+name: Static iptables
+
+on:
+  push:
+    branches: [master]
+    tags: ['pdms-v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            arch: amd64
+          - runner: ubuntu-24.04-arm
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build static binaries
+        env:
+          ARCH: ${{ matrix.arch }}
+        run: |
+          set -eu
+          version=$(sed -n 's/^AC_INIT(\[iptables\], \[\([^]]*\)\]).*/\1/p' configure.ac)
+          test -n "$version"
+          docker run --rm -v "$PWD:/src" -w /src alpine:3.23 sh scripts/build-static.sh "$ARCH" "$version"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: iptables-${{ matrix.arch }}
+          path: |
+            dist/*.tar.gz
+            dist/*.sha256
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/pdms-v')
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: iptables-*
+          merge-multiple: true
+          path: dist
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          cd dist
+          for checksum in *.sha256; do sha256sum -c "$checksum"; done
+          cat *.sha256 > SHA256SUMS
+          rm -- *.sha256
+          cd ..
+          git archive --format=tar.gz --prefix=iptables-source/ -o dist/iptables-source.tar.gz HEAD
+          gh release create "$GITHUB_REF_NAME" dist/*.tar.gz dist/SHA256SUMS \
+            --title "Static iptables $GITHUB_REF_NAME" \
+            --notes 'Static musl binaries for Linux amd64 and arm64. Both nft and legacy variants are included. Source archive and SHA256SUMS are attached.'
