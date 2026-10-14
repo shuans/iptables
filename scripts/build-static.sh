@@ -19,9 +19,8 @@ apk add --no-cache \
   --disable-shared \
   --disable-connlabel \
   --disable-libnfnetlink \
-  CFLAGS='-Os' \
-  LDFLAGS='-static'
-make -j "$(nproc)"
+  CFLAGS='-Os'
+make -j "$(nproc)" LDFLAGS='-all-static'
 
 out="dist/iptables-${version}-linux-${arch}"
 mkdir -p "$out/bin"
