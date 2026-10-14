@@ -62,6 +62,9 @@ jobs:
           rm -- *.sha256
           cd ..
           git archive --format=tar.gz --prefix=iptables-source/ -o dist/iptables-source.tar.gz HEAD
+          cd dist
+          sha256sum iptables-source.tar.gz >> SHA256SUMS
+          cd ..
           gh release create "$GITHUB_REF_NAME" dist/*.tar.gz dist/SHA256SUMS \
             --title "Static iptables $GITHUB_REF_NAME" \
             --notes 'Static musl binaries for Linux amd64 and arm64. Both nft and legacy variants are included. Source archive and SHA256SUMS are attached.'
